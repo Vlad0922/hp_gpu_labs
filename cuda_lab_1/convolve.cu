@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <string>
 #include <tuple>
 
 #include <assert.h>
@@ -12,9 +11,14 @@
 
 #include "matrix.h"
 
+const size_t BLOCK_X = 16;
+const size_t BLOCK_Y = 16;
+
 __global__
 void convolve(const float *A, const float *B, float *dst, const int matrix_size, const int kernel_size)
 {
+    __shared__ float s[BLOCK_X*BLOCK_Y];
+
     int i = (blockIdx.x*blockDim.x) + threadIdx.x;
     int j = (blockIdx.y*blockDim.y) + threadIdx.y;
 
@@ -40,16 +44,20 @@ void convolve(const float *A, const float *B, float *dst, const int matrix_size,
             }
         }
 
-        dst[j*matrix_size+i] = res;
+        s[threadIdx.y*BLOCK_X + threadIdx.x] = res;
+    }
+
+    __syncthreads();
+
+    if(i < matrix_size && j < matrix_size)
+    {
+        dst[j*matrix_size+i] = s[threadIdx.y*BLOCK_X + threadIdx.x];
     }
 }
 
 
 SquareMatrix convolve_with_cuda(const SquareMatrix &A, const SquareMatrix &B)
 {
-    const size_t BLOCK_X = 16;
-    const size_t BLOCK_Y = 16;
-
     const size_t GRID_X = A.size()/BLOCK_X + int( (A.size() % BLOCK_X) != 0);
     const size_t GRID_Y = A.size()/BLOCK_Y + int( (A.size() % BLOCK_Y) != 0);
 
@@ -77,7 +85,6 @@ SquareMatrix convolve_with_cuda(const SquareMatrix &A, const SquareMatrix &B)
     cudaFree(dev_kernel);
     cudaFree(dev_result);
 
-
     return C;
 }
 
@@ -97,13 +104,13 @@ void read_from_fstream(std::ifstream &input, float *arr, const size_t size)
     }
 }
 
-std::tuple<SquareMatrix, SquareMatrix> read_data()
+std::tuple<SquareMatrix, SquareMatrix> read_data(const char *fname)
 {
-    std::ifstream input_file(INPUT_FNAME);
+    std::ifstream input_file(fname);
 
     if(!input_file.is_open())
     {
-        std::cerr << "Cannot open input.txt!\n";
+        std::cerr << "Cannot open " << fname << "!\n";
         exit(1);
     }
 
@@ -166,28 +173,131 @@ SquareMatrix convolve(const SquareMatrix &A, const SquareMatrix &B)
     return C;
 }
 
-int main()
-{
-    SquareMatrix A, B;
-    std::tie(A, B) = read_data();
 
-    SquareMatrix correct = convolve(A, B);
-    SquareMatrix cuda_res = convolve_with_cuda(A, B);
-    
-    if(correct == cuda_res)
+void write_data(const char *fname, const SquareMatrix &m)
+{
+    std::ofstream out_file(fname);
+
+    if(!out_file.is_open())
+    {        
+        std::cerr << "Cannot open " << fname << "!\n";
+        return;
+    }    
+
+    for(size_t i = 0; i < m.size(); ++i)
     {
-        std::cout << "Ok!\n";
+        for(size_t j = 0; j < m.size(); ++j)
+        {
+            out_file << m[i][j] << ' ';
+        }
+        out_file << '\n';
+    }
+}
+
+
+void run_test()
+{
+    {
+        SquareMatrix A(1024);
+        SquareMatrix B(3);
+
+        A.fill(1.);
+        B.fill(1.);
+
+        SquareMatrix correct = convolve(A, B);
+        SquareMatrix cuda_res = convolve_with_cuda(A, B);
+
+        assert(correct == cuda_res && "First test didn't pass");
+    }
+
+    {
+        SquareMatrix A(1024);
+        SquareMatrix B(9);
+
+        A.fill(1.);
+        B.fill(1.);
+
+        SquareMatrix correct = convolve(A, B);
+        SquareMatrix cuda_res = convolve_with_cuda(A, B);
+
+        assert(correct == cuda_res && "First test didn't pass");
+    }
+
+    {
+        SquareMatrix A(1);
+        SquareMatrix B(9);
+
+        A.fill(1.);
+        B.fill(1.);
+
+        SquareMatrix correct = convolve(A, B);
+        SquareMatrix cuda_res = convolve_with_cuda(A, B);
+
+        assert(correct == cuda_res && "First test didn't pass");
+    }
+
+    {
+        SquareMatrix A(31);
+        SquareMatrix B(9);
+
+        A.fill(1.);
+        B.fill(1.);
+
+        SquareMatrix correct = convolve(A, B);
+        SquareMatrix cuda_res = convolve_with_cuda(A, B);
+
+        assert(correct == cuda_res && "First test didn't pass");
+    }
+
+    {
+        SquareMatrix A(1023);
+        SquareMatrix B(9);
+
+        A.fill(1.);
+        B.fill(1.);
+
+        SquareMatrix correct = convolve(A, B);
+        SquareMatrix cuda_res = convolve_with_cuda(A, B);
+
+        assert(correct == cuda_res && "First test didn't pass");
+    }
+
+    std::cout << "All tests passed!\n";
+}
+
+
+int main(int argc, char **argv)
+{
+    if(argc == 2 && strcmp(argv[1], "test") == 0)
+    {
+        run_test();
     }
     else
     {
-        std::cout << "Error!\n";
+        SquareMatrix A, B;
+        std::tie(A, B) = read_data(INPUT_FNAME);
 
-        print_matrix(correct);
+        SquareMatrix correct = convolve(A, B);
+        SquareMatrix cuda_res = convolve_with_cuda(A, B);
+        
+        if(correct == cuda_res)
+        {
+            std::cout << "Ok!\n";
 
-        std::cout << "*******\n";
+            write_data(OUTPUT_FNAME, cuda_res);
+        }
+        else
+        {
+            std::cout << "Error!\n";
 
-        print_matrix(cuda_res);
+            print_matrix(correct);
+
+            std::cout << "*******\n";
+
+            print_matrix(cuda_res);
+        }
     }
+
 
     return 0;
 }

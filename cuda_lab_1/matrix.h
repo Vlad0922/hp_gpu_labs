@@ -5,17 +5,17 @@
 
 namespace
 {
-	bool fuzzy_comp(float a, float b)
-	{
-		if(abs(a - b) < 1e-4)
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
-	}
+    bool fuzzy_comp(float a, float b)
+    {
+        if(abs(a - b) < 1e-4)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
 }
 
 struct SquareMatrix
@@ -41,8 +41,8 @@ struct SquareMatrix
     bool operator==(const SquareMatrix &rhs) const
     {
         if(sz != rhs.sz)
-        {	
-        	std::cout << "wronng size!\n";
+        {   
+            std::cout << "wronng size!\n";
             return false;
         }
 
@@ -52,7 +52,7 @@ struct SquareMatrix
             {
                 if(!fuzzy_comp(m[i*sz + j], rhs.m[i*sz + j]))
                 {
-                	std::cout << m[i*sz + j] << " != " << rhs.m[i*sz + j] << '\n';
+                    std::cout << m[i*sz + j] << " != " << rhs.m[i*sz + j] << '\n';
                     return false;
                 }
             }
@@ -91,7 +91,7 @@ struct SquareMatrix
 
     const float *data() const 
     {
-    	return m;
+        return m;
     }
 
     size_t size() const
@@ -108,6 +108,11 @@ struct SquareMatrix
         rhs.sz = 0;
 
         return *this;
+    }
+
+    void fill(const float val)
+    {
+        std::fill_n(m, sz*sz, val);
     }
 
 private:
