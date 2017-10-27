@@ -21,20 +21,11 @@ struct SquareMatrix
         sz{other.sz}
     {
          m = create_squre_matrix(sz);
-
-         for(size_t i = 0; i < sz; ++i)
-         {
-             std::memcpy(m[i], other.m[i], sz*sizeof(double));
-         }
+         std::memcpy(m, other.m, sz*sz*sizeof(float));
     }
 
     ~SquareMatrix()
     {
-        for(size_t i = 0; i < sz; ++i)
-        {
-            delete[] m[i];
-        }
-
         delete[] m;
     }
 
@@ -49,7 +40,7 @@ struct SquareMatrix
         {
             for(size_t j = 0; j < sz; ++j)
             {
-                if(m[i][j] != rhs.m[i][j])
+                if(m[i*sz + j] != rhs.m[i*sz + j])
                 {
                     return false;
                 }
@@ -60,7 +51,7 @@ struct SquareMatrix
     }
 
     // well...we can't overload operator [][]
-    double get_val(int i, int j) const
+    float get_val(int i, int j) const
     {
         if(i < 0 || j < 0 || i >= sz || j >= sz)
         {
@@ -68,21 +59,21 @@ struct SquareMatrix
         }
         else
         {
-            return m[i][j];
+            return m[i*sz + j];
         }
     }
 
-    double *operator[](size_t i)
+    float *operator[](size_t i)
     {
-        return m[i];
+        return &m[i*sz];
     }
 
-    const double *operator[](size_t i) const
+    const float *operator[](size_t i) const
     {
-        return m[i];
+        return &m[i*sz];
     }
 
-    double **data()
+    float *data()
     {
         return m;
     }
@@ -104,31 +95,25 @@ struct SquareMatrix
     }
 
 private:
-    double **create_squre_matrix(size_t size)
+    float *create_squre_matrix(size_t size)
     {
-        double **arr = new double*[size];
-
-        for(size_t i = 0; i < size; ++i)
-        {
-            arr[i] = new double[size];
-        }
-
-        return arr;
+        return new float[size*size];
     }
+
 private:
-    double **m;
+    float *m; 
     size_t sz;
 };
 
-void read_from_fstream(std::ifstream &input, double **arr, const size_t size)
+void read_from_fstream(std::ifstream &input, float *arr, const size_t size)
 {
-    double val;
+    float val;
     for(size_t i = 0; i < size; ++i)
     {
         for(size_t j = 0; j < size; ++j)
         {
             input >> val;
-            arr[i][j] = val;
+            arr[i*size + j] = val;
         }
     }
 }
@@ -169,9 +154,9 @@ void print_matrix(const SquareMatrix &m)
 }
 
 
-double calc_cell_convolve(const SquareMatrix &A, const SquareMatrix &B, int i, int j)
+float calc_cell_convolve(const SquareMatrix &A, const SquareMatrix &B, int i, int j)
 {
-    double val = 0;
+    float val = 0;
     int HM = (B.size() - 1)/2;
 
     for(int k = -HM; k <= HM; ++k)
