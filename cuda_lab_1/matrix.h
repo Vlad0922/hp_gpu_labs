@@ -45,11 +45,15 @@ struct SquareMatrix
             return false;
         }
 
-        for(size_t i = 0; i < sz*sz; ++i)
+        for(size_t i = 0; i < sz; ++i)
         {
-            if(!fuzzy_comp(m[i], rhs.m[i]))
+            for(size_t j = 0; j < sz; ++j)
             {
-                return false;
+                if(!fuzzy_comp(m[i*sz + j], rhs.m[i*sz + j]))
+                {
+                    std::cout << m[i*sz + j] << " != " << rhs.m[i*sz + j] << '\n';
+                    return false;
+                }
             }
         }
 
@@ -65,7 +69,7 @@ struct SquareMatrix
         }
         else
         {
-            return m[j*sz + i];
+            return m[i*sz + j];
         }
     }
 
