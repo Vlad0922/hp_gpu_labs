@@ -42,19 +42,14 @@ struct SquareMatrix
     {
         if(sz != rhs.sz)
         {   
-            std::cout << "wronng size!\n";
             return false;
         }
 
-        for(size_t i = 0; i < sz; ++i)
+        for(size_t i = 0; i < sz*sz; ++i)
         {
-            for(size_t j = 0; j < sz; ++j)
+            if(!fuzzy_comp(m[i], rhs.m[i]))
             {
-                if(!fuzzy_comp(m[i*sz + j], rhs.m[i*sz + j]))
-                {
-                    std::cout << m[i*sz + j] << " != " << rhs.m[i*sz + j] << '\n';
-                    return false;
-                }
+                return false;
             }
         }
 
