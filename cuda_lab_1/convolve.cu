@@ -207,7 +207,7 @@ void run_test()
         SquareMatrix correct = convolve(A, B);
         SquareMatrix cuda_res = convolve_with_cuda(A, B);
 
-        assert(correct == cuda_res && "First test didn't pass");
+        assert(correct == cuda_res && "1st test didn't pass");
     }
 
     {
@@ -220,7 +220,7 @@ void run_test()
         SquareMatrix correct = convolve(A, B);
         SquareMatrix cuda_res = convolve_with_cuda(A, B);
 
-        assert(correct == cuda_res && "First test didn't pass");
+        assert(correct == cuda_res && "2nd test didn't pass");
     }
 
     {
@@ -233,7 +233,7 @@ void run_test()
         SquareMatrix correct = convolve(A, B);
         SquareMatrix cuda_res = convolve_with_cuda(A, B);
 
-        assert(correct == cuda_res && "First test didn't pass");
+        assert(correct == cuda_res && "3rd test didn't pass");
     }
 
     {
@@ -246,7 +246,7 @@ void run_test()
         SquareMatrix correct = convolve(A, B);
         SquareMatrix cuda_res = convolve_with_cuda(A, B);
 
-        assert(correct == cuda_res && "First test didn't pass");
+        assert(correct == cuda_res && "4th test didn't pass");
     }
 
     {
@@ -259,7 +259,7 @@ void run_test()
         SquareMatrix correct = convolve(A, B);
         SquareMatrix cuda_res = convolve_with_cuda(A, B);
 
-        assert(correct == cuda_res && "First test didn't pass");
+        assert(correct == cuda_res && "5th test didn't pass");
     }
 
     std::cout << "All tests passed!\n";
