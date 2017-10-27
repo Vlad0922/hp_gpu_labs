@@ -65,7 +65,7 @@ struct SquareMatrix
         }
         else
         {
-            return m[i*sz + j];
+            return m[j*sz + i];
         }
     }
 
