@@ -3,107 +3,15 @@
 #include <sstream>
 #include <string>
 #include <tuple>
-#include <cstring>
+
 #include <assert.h>
+
+#include "matrix.h"
+
+#include "convolve.cu"
 
 const char *INPUT_FNAME  = "input.txt";
 const char *OUTPUT_FNAME = "output.txt";
-
-struct SquareMatrix
-{
-    explicit SquareMatrix(size_t sz_ = 0) :
-        sz{sz_}
-    {
-        m = create_squre_matrix(sz);
-    }
-
-    SquareMatrix(const SquareMatrix &other) :
-        sz{other.sz}
-    {
-         m = create_squre_matrix(sz);
-         std::memcpy(m, other.m, sz*sz*sizeof(float));
-    }
-
-    ~SquareMatrix()
-    {
-        delete[] m;
-    }
-
-    bool operator==(const SquareMatrix &rhs) const
-    {
-        if(sz != rhs.sz)
-        {
-            return false;
-        }
-
-        for(size_t i = 0; i < sz; ++i)
-        {
-            for(size_t j = 0; j < sz; ++j)
-            {
-                if(m[i*sz + j] != rhs.m[i*sz + j])
-                {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    // well...we can't overload operator [][]
-    float get_val(int i, int j) const
-    {
-        if(i < 0 || j < 0 || i >= sz || j >= sz)
-        {
-            return 0;
-        }
-        else
-        {
-            return m[i*sz + j];
-        }
-    }
-
-    float *operator[](size_t i)
-    {
-        return &m[i*sz];
-    }
-
-    const float *operator[](size_t i) const
-    {
-        return &m[i*sz];
-    }
-
-    float *data()
-    {
-        return m;
-    }
-
-    size_t size() const
-    {
-        return sz;
-    }
-
-    const SquareMatrix &operator=(SquareMatrix && rhs)
-    {
-        sz = rhs.sz;
-        m = rhs.m;
-
-        rhs.m = nullptr;
-        rhs.sz = 0;
-
-        return *this;
-    }
-
-private:
-    float *create_squre_matrix(size_t size)
-    {
-        return new float[size*size];
-    }
-
-private:
-    float *m; 
-    size_t sz;
-};
 
 void read_from_fstream(std::ifstream &input, float *arr, const size_t size)
 {
@@ -192,7 +100,7 @@ int main()
     SquareMatrix A, B;
     std::tie(A, B) = read_data();
 
-    SquareMatrix C = convolve(A, B);
+    SquareMatrix C = convolve_with_cuda(A, B);
     std::cout << "Ok!\n";
 
     print_matrix(C);
