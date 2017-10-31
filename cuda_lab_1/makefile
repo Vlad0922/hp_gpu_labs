@@ -2,6 +2,6 @@ NVCC=nvcc
 NVCC_OPTS=-O3 -Xcompiler -Wall -Xcompiler -Wextra -std=c++11
 
 all:
-	$(NVCC) $(NVCC_OPTS) convolve.cu -o lab_1
+	$(NVCC) $(NVCC_OPTS) src/convolve.cu -o bin/lab_1
 clean:
-	rm lab_1 
+	rm bin/*
