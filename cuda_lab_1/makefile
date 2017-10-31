@@ -8,6 +8,6 @@ all:
 		mkdir $(BIN_PATH);			\
 	fi								
 
-	$(NVCC) $(NVCC_OPTS) src/convolve.cu -o bin/lab_1
+	$(NVCC) $(NVCC_OPTS) src/convolve.cu -o $(BIN_PATH)/lab_1
 clean:
 	rm bin/*
