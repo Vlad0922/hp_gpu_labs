@@ -188,7 +188,7 @@ void write_data(const char *fname, const SquareMatrix &m)
     {
         for(size_t j = 0; j < m.size(); ++j)
         {
-            out_file << m[j][i] << ' ';
+            out_file << m[i][j] << ' ';
         }
         out_file << '\n';
     }
