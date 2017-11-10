@@ -3,6 +3,7 @@
 #include <sstream>
 #include <tuple>
 #include <vector>
+#include <random>
 
 #include <assert.h>
 
@@ -52,8 +53,8 @@ void convolve(const float *A, const float *B, float *dst, const int matrix_size,
 
     extern __shared__ float s_kernel[];
 
-    // float *s_matrix = &s[kernel_size*kernel_size];
     // float *s_kernel = s;
+    // float *s_matrix = &s[kernel_size*kernel_size];
 
     int x_offset = blockIdx.x*blockDim.x;
     int y_offset = blockIdx.y*blockDim.y;
@@ -68,8 +69,6 @@ void convolve(const float *A, const float *B, float *dst, const int matrix_size,
             int ker_idx = threadIdx.y*kernel_size + threadIdx.x;
             s_kernel[ker_idx] = B[ker_idx];
         }
-
-        // s_matrix[threadIdx.y*BLOCK_X + threadIdx.x] = A[a_y*matrix_size + a_x];
 
         __syncthreads();
 
@@ -107,7 +106,7 @@ SquareMatrix convolve_with_cuda(const SquareMatrix &A, const SquareMatrix &B)
     const size_t HM = (B.size() - 1)/2;
     // const size_t shared_memsize = ((BLOCK_X + 2*HM)*(BLOCK_Y+2*HM) + B.size()*B.size())*sizeof(float);
     const size_t shared_memsize = B.size()*B.size()*sizeof(float);
-
+    
     const dim3 blockSize(BLOCK_X, BLOCK_Y, 1);  
     const dim3 gridSize(GRID_X, GRID_Y, 1); 
 
@@ -241,6 +240,23 @@ void write_data(const char *fname, const SquareMatrix &m)
     }
 }
 
+SquareMatrix generate_random_matrix(size_t sz)
+{
+    std::default_random_engine generator;
+    std::normal_distribution<float> distribution(5.0,2.0);
+
+    SquareMatrix m(sz);
+
+    for(size_t i = 0; i < sz; ++i)
+    {
+        for(size_t j = 0; j < sz; ++j)
+        {
+            m[i][j] = distribution(generator);
+        }   
+    }
+
+    return m;
+}
 
 void run_test()
 {
@@ -251,15 +267,6 @@ void run_test()
                             SquareMatrix correct = convolve(A, B);
                             SquareMatrix cuda_res = convolve_with_cuda(A, B);
 
-                            // bool res = correct == cuda_res;
-
-                            // if(!res)
-                            // {
-                            //     print_matrix(correct);
-                            //     std::cout << "******\n";
-                            //     print_matrix(cuda_res);
-                            // }
-
                             return correct == cuda_res;
                         };
 
@@ -269,7 +276,9 @@ void run_test()
                                             std::make_tuple(SquareMatrix(1024, 1.), SquareMatrix(9, 1.), "3rd"),
                                             std::make_tuple(SquareMatrix(1, 1.),    SquareMatrix(9, 1.), "4th"),
                                             std::make_tuple(SquareMatrix(31, 1.),   SquareMatrix(9, 1.), "5th"),
-                                            std::make_tuple(SquareMatrix(1023, 1.), SquareMatrix(9, 1.), "6th")
+                                            std::make_tuple(SquareMatrix(1023, 1.), SquareMatrix(9, 1.), "6th"),
+
+                                            std::make_tuple(generate_random_matrix(1000), generate_random_matrix(5), "7th")
                                         };
 
     for(const test_val_t &test : test_vals)
