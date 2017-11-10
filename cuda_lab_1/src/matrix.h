@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include <cmath>
+#include <algorithm>
 
 namespace
 {
@@ -52,7 +53,7 @@ struct SquareMatrix
             {
                 if(!fuzzy_comp(m[i*sz + j], rhs.m[i*sz + j], 1e-2))
                 {
-                    std::cout << i << ' ' << j << ' ' << m[i*sz + j] << " != " << rhs.m[i*sz + j] << '\n';
+                    // std::cout << i << ' ' << j << ' ' << m[i*sz + j] << " != " << rhs.m[i*sz + j] << '\n';
                     return false;
                 }
             }
