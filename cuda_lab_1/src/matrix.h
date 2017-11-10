@@ -20,10 +20,11 @@ namespace
 
 struct SquareMatrix
 {
-    explicit SquareMatrix(size_t sz_ = 0) :
+    explicit SquareMatrix(size_t sz_ = 0, float fill_val = 0.) :
         sz{sz_}
     {
         m = create_squre_matrix(sz);
+        fill(fill_val);
     }
 
     SquareMatrix(const SquareMatrix &other) :
@@ -51,7 +52,7 @@ struct SquareMatrix
             {
                 if(!fuzzy_comp(m[i*sz + j], rhs.m[i*sz + j], 1e-2))
                 {
-                    // std::cout << m[i*sz + j] << " != " << rhs.m[i*sz + j] << '\n';
+                    std::cout << i << ' ' << j << ' ' << m[i*sz + j] << " != " << rhs.m[i*sz + j] << '\n';
                     return false;
                 }
             }

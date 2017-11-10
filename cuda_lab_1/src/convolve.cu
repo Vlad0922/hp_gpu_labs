@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <tuple>
+#include <vector>
 
 #include <assert.h>
 
@@ -14,52 +15,98 @@
 const size_t BLOCK_X = 16;
 const size_t BLOCK_Y = 16;
 
+__device__
+void fill_border(float *dst, const int size, const int HM, const float val)
+{
+    for(int i = 0; i < size; ++i)
+    {
+        for(int j = 0; j < HM; ++j)
+        {
+            dst[j*size + i] = val;
+        }
+
+        for(int j = size - HM; j < size; ++j)
+        {
+            dst[j*size + i] = val;
+        }
+    }
+
+    for(int j = HM; j < size - HM; ++j)
+    {
+        for(int i = 0; i < HM; ++i)
+        {
+            dst[j*size + i] = val;
+        }
+
+        for(int i = size - HM; i < size; ++i)
+        {
+            dst[j*size + i] = val;
+        }
+    }
+}
+
 __global__
 void convolve(const float *A, const float *B, float *dst, const int matrix_size, const int kernel_size)
 {
-    __shared__ float s[BLOCK_X*BLOCK_Y];
+    const int HM = (kernel_size - 1)/2;
 
-    int i = (blockIdx.x*blockDim.x) + threadIdx.x;
-    int j = (blockIdx.y*blockDim.y) + threadIdx.y;
+    extern __shared__ float s_kernel[];
 
-    if(i < matrix_size && j < matrix_size)
+    // float *s_matrix = &s[kernel_size*kernel_size];
+    // float *s_kernel = s;
+
+    int x_offset = blockIdx.x*blockDim.x;
+    int y_offset = blockIdx.y*blockDim.y;
+
+    int a_x = x_offset + threadIdx.x;
+    int a_y = y_offset + threadIdx.y;
+
+    if(a_x < matrix_size && a_y < matrix_size)
     {
+        if(threadIdx.x < kernel_size && threadIdx.y < kernel_size)
+        {
+            int ker_idx = threadIdx.y*kernel_size + threadIdx.x;
+            s_kernel[ker_idx] = B[ker_idx];
+        }
+
+        // s_matrix[threadIdx.y*BLOCK_X + threadIdx.x] = A[a_y*matrix_size + a_x];
+
+        __syncthreads();
+
         float res = 0.;
-        const int HM = (kernel_size - 1)/2;
 
         for(int k = -HM; k <= HM; ++k)
         {
-            for(int l = -HM; l <= HM; ++l)
+            int x = a_x + k;
+            if (x >= 0 && x < matrix_size)
             {
-                int x = i + k;
-                int y = j + l;
-
-                int ker_x = k + HM;
-                int ker_y = l + HM;
-
-                if( x >= 0 && x < matrix_size && y >= 0 && y < matrix_size)
+                for(int l = -HM; l <= HM; ++l)
                 {
-                    res += A[y*matrix_size + x]*B[ker_y*kernel_size + ker_x];
+                    int y = a_y + l;
+
+                    if(y >= 0 && y < matrix_size)
+                    {                    
+                        int ker_x = k + HM;
+                        int ker_y = l + HM;
+
+                        res += A[y*matrix_size + x]*s_kernel[ker_y*kernel_size + ker_x];
+                    }
                 }
             }
         }
 
-        s[threadIdx.y*BLOCK_X + threadIdx.x] = res;
-    }
-
-    __syncthreads();
-
-    if(i < matrix_size && j < matrix_size)
-    {
-        dst[j*matrix_size+i] = s[threadIdx.y*BLOCK_X + threadIdx.x];
+        dst[a_y*matrix_size + a_x] = res;
     }
 }
-
 
 SquareMatrix convolve_with_cuda(const SquareMatrix &A, const SquareMatrix &B)
 {
     const size_t GRID_X = A.size()/BLOCK_X + int( (A.size() % BLOCK_X) != 0);
     const size_t GRID_Y = A.size()/BLOCK_Y + int( (A.size() % BLOCK_Y) != 0);
+
+    const size_t HM = (B.size() - 1)/2;
+    // const size_t shared_memsize = ((BLOCK_X + 2*HM)*(BLOCK_Y+2*HM) + B.size()*B.size())*sizeof(float);
+    const size_t shared_memsize = B.size()*B.size()*sizeof(float);
 
     const dim3 blockSize(BLOCK_X, BLOCK_Y, 1);  
     const dim3 gridSize(GRID_X, GRID_Y, 1); 
@@ -71,13 +118,13 @@ SquareMatrix convolve_with_cuda(const SquareMatrix &A, const SquareMatrix &B)
     float *dev_result;
 
     cudaMalloc((void **)&dev_result, A.size()*A.size()*sizeof(float));
-    cudaMalloc((void **)&dev_A, A.size()*A.size()*sizeof(float));
+    cudaMalloc((void **)&dev_A,      A.size()*A.size()*sizeof(float));
     cudaMalloc((void **)&dev_kernel, B.size()*B.size()*sizeof(float));  
 
-    cudaMemcpy(dev_A, A.data(), A.size()*A.size()*sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_kernel, B.data(), B.size()*B.size()*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_A,       A.data(), A.size()*A.size()*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_kernel,  B.data(), B.size()*B.size()*sizeof(float), cudaMemcpyHostToDevice);
 
-    convolve<<<gridSize, blockSize>>>(dev_A, dev_kernel, dev_result, A.size(), B.size());
+    convolve<<<gridSize, blockSize, shared_memsize>>>(dev_A, dev_kernel, dev_result, A.size(), B.size());
 
     cudaMemcpy(C.data(), dev_result, C.size()*C.size()*sizeof(float), cudaMemcpyDeviceToHost);
 
@@ -197,69 +244,47 @@ void write_data(const char *fname, const SquareMatrix &m)
 
 void run_test()
 {
+    using test_val_t = std::tuple<SquareMatrix, SquareMatrix, const char *>;
+
+    auto test_func = [](const SquareMatrix &A, const SquareMatrix &B)
+                        {
+                            SquareMatrix correct = convolve(A, B);
+                            SquareMatrix cuda_res = convolve_with_cuda(A, B);
+
+                            // bool res = correct == cuda_res;
+
+                            // if(!res)
+                            // {
+                            //     print_matrix(correct);
+                            //     std::cout << "******\n";
+                            //     print_matrix(cuda_res);
+                            // }
+
+                            return correct == cuda_res;
+                        };
+
+    std::vector<test_val_t> test_vals = {
+                                            std::make_tuple(SquareMatrix(5, 1.),    SquareMatrix(3, 1.), "1st"),
+                                            std::make_tuple(SquareMatrix(1024, 1.), SquareMatrix(3, 1.), "2nd"),
+                                            std::make_tuple(SquareMatrix(1024, 1.), SquareMatrix(9, 1.), "3rd"),
+                                            std::make_tuple(SquareMatrix(1, 1.),    SquareMatrix(9, 1.), "4th"),
+                                            std::make_tuple(SquareMatrix(31, 1.),   SquareMatrix(9, 1.), "5th"),
+                                            std::make_tuple(SquareMatrix(1023, 1.), SquareMatrix(9, 1.), "6th")
+                                        };
+
+    for(const test_val_t &test : test_vals)
     {
-        SquareMatrix A(1024);
-        SquareMatrix B(3);
+        bool res = test_func(std::get<0>(test), std::get<1>(test));
 
-        A.fill(1.);
-        B.fill(1.);
-
-        SquareMatrix correct = convolve(A, B);
-        SquareMatrix cuda_res = convolve_with_cuda(A, B);
-
-        assert(correct == cuda_res && "1st test didn't pass");
-    }
-
-    {
-        SquareMatrix A(1024);
-        SquareMatrix B(9);
-
-        A.fill(1.);
-        B.fill(1.);
-
-        SquareMatrix correct = convolve(A, B);
-        SquareMatrix cuda_res = convolve_with_cuda(A, B);
-
-        assert(correct == cuda_res && "2nd test didn't pass");
-    }
-
-    {
-        SquareMatrix A(1);
-        SquareMatrix B(9);
-
-        A.fill(1.);
-        B.fill(1.);
-
-        SquareMatrix correct = convolve(A, B);
-        SquareMatrix cuda_res = convolve_with_cuda(A, B);
-
-        assert(correct == cuda_res && "3rd test didn't pass");
-    }
-
-    {
-        SquareMatrix A(31);
-        SquareMatrix B(9);
-
-        A.fill(1.);
-        B.fill(1.);
-
-        SquareMatrix correct = convolve(A, B);
-        SquareMatrix cuda_res = convolve_with_cuda(A, B);
-
-        assert(correct == cuda_res && "4th test didn't pass");
-    }
-
-    {
-        SquareMatrix A(1023);
-        SquareMatrix B(9);
-
-        A.fill(1.);
-        B.fill(1.);
-
-        SquareMatrix correct = convolve(A, B);
-        SquareMatrix cuda_res = convolve_with_cuda(A, B);
-
-        assert(correct == cuda_res && "5th test didn't pass");
+        if(res)
+        {
+            std::cout << std::get<2>(test) << " is correct\n";
+        }
+        else
+        {
+            std::cout << std::get<2>(test) << " is incorrect\n";
+            return;
+        }
     }
 
     std::cout << "All tests passed!\n";
