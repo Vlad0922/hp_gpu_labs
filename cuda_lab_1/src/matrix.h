@@ -53,7 +53,7 @@ struct SquareMatrix
             {
                 if(!fuzzy_comp(m[i*sz + j], rhs.m[i*sz + j], 1e-2))
                 {
-                    // std::cout << i << ' ' << j << ' ' << m[i*sz + j] << " != " << rhs.m[i*sz + j] << '\n';
+                    std::cout << i << ' ' << j << ' ' << m[i*sz + j] << " != " << rhs.m[i*sz + j] << '\n';
                     return false;
                 }
             }
@@ -62,6 +62,8 @@ struct SquareMatrix
         return true;
     }
 
+
+    #pragma GCC diagnostic ignored "-Wsign-compare"
     // well...we can't overload operator [][]
     float get_val(int i, int j) const
     {
@@ -74,6 +76,8 @@ struct SquareMatrix
             return m[i*sz + j];
         }
     }
+    #pragma GCC diagnostic pop 
+
 
     float *operator[](size_t i)
     {

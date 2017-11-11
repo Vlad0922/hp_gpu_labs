@@ -1,7 +1,7 @@
 BIN_PATH="bin"
 
 NVCC=nvcc
-NVCC_OPTS=-O3 -Xcompiler -Wall -Xcompiler -Wextra -std=c++11
+NVCC_OPTS=-O2 -Xcompiler -Wall -Xcompiler -Wextra -std=c++11
 
 all:
 	if [ ! -d $(BIN_PATH) ]; then	\
