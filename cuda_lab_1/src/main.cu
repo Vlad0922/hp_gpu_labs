@@ -206,47 +206,56 @@ void run_test(bool with_time_test = false)
 
     std::cout << "All tests passed!\n";
 
-    using results_t = std::tuple<int, double, double>;
-    std::vector<results_t> results;
-
-    const int step = 128;
-    const int max_size = 1 << 13;
-    const int tt_ker_size = 9;
-
-    for(int curr_size = 128; curr_size <= max_size; curr_size += step)
+    if(with_time_test)
     {
-        SquareMatrix A = generate_random_matrix(curr_size);
-        SquareMatrix B = generate_random_matrix(tt_ker_size);
+        using results_t = std::tuple<int, double, double>;
+        std::vector<results_t> results;
 
-        bool res;
-        double cpu_time, gpu_time;
+        const int step = 128;
+        const int max_size = 1 << 13;
+        const int tt_ker_size = 9;
 
-        std::tie(res, cpu_time, gpu_time) = test_func(A, B);
+        for(int curr_size = 128; curr_size <= max_size; curr_size += step)
+        {
+            SquareMatrix A = generate_random_matrix(curr_size);
+            SquareMatrix B = generate_random_matrix(tt_ker_size);
 
-        std::cout << "running time test with size=" << curr_size << '\n';
+            bool res;
+            double cpu_time, gpu_time;
 
-        results.push_back(std::make_tuple(curr_size, cpu_time, gpu_time));
-    }
+            std::tie(res, cpu_time, gpu_time) = test_func(A, B);
 
-    std::ofstream f(RES_TABLE_FNAME);
-    f << "size;cpu;gpu\n";
-    for(results_t &res: results)
-    {
-        size_t sz;
-        double cpu_time, gpu_time;
+            std::cout << "running time test with size=" << curr_size << '\n';
 
-        std::tie(sz, cpu_time, gpu_time) = res;
+            results.push_back(std::make_tuple(curr_size, cpu_time, gpu_time));
+        }
 
-        f << sz << ';' << cpu_time << ';' << gpu_time << '\n';
+        std::ofstream f(RES_TABLE_FNAME);
+        f << "size;cpu;gpu\n";
+        for(results_t &res: results)
+        {
+            size_t sz;
+            double cpu_time, gpu_time;
+
+            std::tie(sz, cpu_time, gpu_time) = res;
+
+            f << sz << ';' << cpu_time << ';' << gpu_time << '\n';
+        }
     }
 }
 
 
 int main(int argc, char **argv)
 {
-    if(argc == 2 && strcmp(argv[1], "test") == 0)
+    if(argc >= 2 && strcmp(argv[1], "test") == 0)
     {
-        run_test(true);
+        bool with_time = false;
+        if(argc == 3 && strcmp(argv[2], "time") == 0)
+        {
+            with_time = true;
+        }
+
+        run_test(with_time);
     }
     else
     {
