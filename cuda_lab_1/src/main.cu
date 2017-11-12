@@ -68,27 +68,14 @@ float calc_cell_convolve(const SquareMatrix &A, const SquareMatrix &B, int i, in
 {
     float val = 0;
     int HM = (B.size() - 1)/2;
-    // if(i == 0 && j == 0)
-    // {
-    //     std::cout << "HM: " << HM << '\n';
-    // }
-
+    
     for(int k = -HM; k <= HM; ++k)
     {
         for(int l = -HM; l <= HM; ++l)
         {
-            // if(i == 0 && j == 0)
-            // {
-            //     std::cout << i + k + HM << ' ' << j + l + HM << '\n';
-            // }
             val += A.get_val(i+k, j+l)*B.get_val(k+HM, l+HM);
         }
     }
-    // if(i == 0 && j == 0)
-    // {
-    //     std::cout << "******\n";
-    // }
-
 
     return val;
 }
@@ -149,29 +136,28 @@ SquareMatrix generate_random_matrix(size_t sz)
     return m;
 }
 
-void run_test(bool with_time_test = false)
+std::tuple<bool, double, double> test_convolve(const SquareMatrix &A, const SquareMatrix &B)
+{
+    auto start = std::chrono::steady_clock::now();
+    SquareMatrix correct = convolve(A, B);
+    auto end = std::chrono::steady_clock::now();
+
+    double cpu_time = std::chrono::duration<double, std::milli> (end - start).count();
+
+    start = std::chrono::steady_clock::now();
+    SquareMatrix cuda_res = convolve_with_cuda(A, B);
+    end = std::chrono::steady_clock::now();
+
+    double gpu_time = std::chrono::duration<double, std::milli> (end - start).count();
+
+    bool res = (correct == cuda_res);
+
+    return std::make_tuple(res, cpu_time, gpu_time);
+}
+
+void run_test()
 {
     using test_val_t = std::tuple<SquareMatrix, SquareMatrix, const char *>;
-
-    auto test_func = [](const SquareMatrix &A, const SquareMatrix &B)
-                        {   
-                            auto start = std::chrono::steady_clock::now();
-                            SquareMatrix correct = convolve(A, B);
-                            auto end = std::chrono::steady_clock::now();
-
-                            double cpu_time = std::chrono::duration<double, std::milli> (end - start).count();
-
-                            start = std::chrono::steady_clock::now();
-                            SquareMatrix cuda_res = convolve_with_cuda(A, B);
-                            end = std::chrono::steady_clock::now();
-
-                            double gpu_time = std::chrono::duration<double, std::milli> (end - start).count();
-
-                            bool res = (correct == cuda_res);
-
-                            return std::make_tuple(res, cpu_time, gpu_time);
-                        };
-
     std::vector<test_val_t> test_vals = {
                                             std::make_tuple(SquareMatrix(5, 1.),    SquareMatrix(3, 1.), "1st"),
                                             std::make_tuple(SquareMatrix(17, 1.),   SquareMatrix(3, 1.), "2nd"),
@@ -189,7 +175,7 @@ void run_test(bool with_time_test = false)
         bool res;
         double cpu_time, gpu_time;
 
-        std::tie(res, cpu_time, gpu_time) = test_func(std::get<0>(test), std::get<1>(test));
+        std::tie(res, cpu_time, gpu_time) = test_convolve(std::get<0>(test), std::get<1>(test));
 
         if(res)
         {
@@ -203,59 +189,63 @@ void run_test(bool with_time_test = false)
         }
     }
 
-
     std::cout << "All tests passed!\n";
-
-    if(with_time_test)
-    {
-        using results_t = std::tuple<int, double, double>;
-        std::vector<results_t> results;
-
-        const int step = 128;
-        const int max_size = 1 << 13;
-        const int tt_ker_size = 9;
-
-        for(int curr_size = 128; curr_size <= max_size; curr_size += step)
-        {
-            SquareMatrix A = generate_random_matrix(curr_size);
-            SquareMatrix B = generate_random_matrix(tt_ker_size);
-
-            bool res;
-            double cpu_time, gpu_time;
-
-            std::tie(res, cpu_time, gpu_time) = test_func(A, B);
-
-            std::cout << "running time test with size=" << curr_size << '\n';
-
-            results.push_back(std::make_tuple(curr_size, cpu_time, gpu_time));
-        }
-
-        std::ofstream f(RES_TABLE_FNAME);
-        f << "size;cpu;gpu\n";
-        for(results_t &res: results)
-        {
-            size_t sz;
-            double cpu_time, gpu_time;
-
-            std::tie(sz, cpu_time, gpu_time) = res;
-
-            f << sz << ';' << cpu_time << ';' << gpu_time << '\n';
-        }
-    }
 }
 
+using results_t = std::tuple<int, double, double>;
+std::vector<results_t> test_time()
+{    
+    std::vector<results_t> results;
+
+    const int step = 128;
+    const int max_size = 1 << 13;
+    const int tt_ker_size = 9;
+
+    for(int curr_size = step; curr_size <= max_size; curr_size += step)
+    {
+        SquareMatrix A = generate_random_matrix(curr_size);
+        SquareMatrix B = generate_random_matrix(tt_ker_size);
+
+        bool res;
+        double cpu_time, gpu_time;
+
+        std::tie(res, cpu_time, gpu_time) = test_convolve(A, B);
+
+        std::cout << "running time test with size=" << curr_size << '\n';
+
+        results.push_back(std::make_tuple(curr_size, cpu_time, gpu_time));
+    }
+
+    return results;
+}
+
+void write_results(const std::vector<results_t> &results)
+{
+    std::ofstream f(RES_TABLE_FNAME);
+    f << "size;cpu;gpu\n";
+
+    for(const results_t &res: results)
+    {
+        size_t sz;
+        double cpu_time, gpu_time;
+
+        std::tie(sz, cpu_time, gpu_time) = res;
+
+        f << sz << ';' << cpu_time << ';' << gpu_time << '\n';
+    }
+}
 
 int main(int argc, char **argv)
 {
     if(argc >= 2 && strcmp(argv[1], "test") == 0)
     {
-        bool with_time = false;
         if(argc == 3 && strcmp(argv[2], "time") == 0)
         {
-            with_time = true;
+            std::vector<results_t> results = test_time();
+            write_results(results);
         }
 
-        run_test(with_time);
+        run_test();
     }
     else
     {

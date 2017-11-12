@@ -3,19 +3,13 @@
 #include <cstring>
 #include <cmath>
 #include <algorithm>
+#include <utility>
 
 namespace
 {
     bool fuzzy_comp(float a, float b, float max_err = 1e-3)
     {
-        if(abs(a - b) < max_err)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return (abs(a - b) < max_err)
     }
 }
 
@@ -33,6 +27,11 @@ struct SquareMatrix
     {
          m = create_squre_matrix(sz);
          std::memcpy(m, other.m, sz*sz*sizeof(float));
+    }
+
+    SquareMatrix(SquareMatrix &&other) 
+    {
+        *this = std::move(other);
     }
 
     ~SquareMatrix()
@@ -53,7 +52,6 @@ struct SquareMatrix
             {
                 if(!fuzzy_comp(m[i*sz + j], rhs.m[i*sz + j], 1e-2))
                 {
-                    std::cout << i << ' ' << j << ' ' << m[i*sz + j] << " != " << rhs.m[i*sz + j] << '\n';
                     return false;
                 }
             }
@@ -61,7 +59,6 @@ struct SquareMatrix
 
         return true;
     }
-
 
     #pragma GCC diagnostic ignored "-Wsign-compare"
     // well...we can't overload operator [][]
@@ -104,7 +101,7 @@ struct SquareMatrix
         return sz;
     }
 
-    const SquareMatrix &operator=(SquareMatrix && rhs)
+    const SquareMatrix &operator=(SquareMatrix &&rhs)
     {
         sz = rhs.sz;
         m = rhs.m;
