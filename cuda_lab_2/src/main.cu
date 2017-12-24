@@ -110,6 +110,7 @@ void test_time(const std::string &fname = "cpu_vs_gpu.csv")
 
         curr_step += 1;
 
+        // copied from https://stackoverflow.com/questions/14539867/how-to-display-a-progress-indicator-in-pure-c-c-cout-printf
         progress = 1.*curr_step/steps_count;
         int pos = barWidth * progress;
         for (int i = 0; i < barWidth; ++i) {
