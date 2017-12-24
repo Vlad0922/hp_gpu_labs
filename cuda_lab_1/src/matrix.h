@@ -9,7 +9,7 @@ namespace
 {
     bool fuzzy_comp(float a, float b, float max_err = 1e-3)
     {
-        return (abs(a - b) < max_err)
+        return (abs(a - b) < max_err);
     }
 }
 
